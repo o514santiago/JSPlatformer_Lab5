@@ -1,0 +1,10 @@
+.background    { background: rgb(0, 0, 100);
+                 table-layout: fixed;
+                 border-spacing: 0;   }
+.background td { padding: 0;          }
+.lava          { background: rgb(255, 0, 0); }
+.wall          { background: green;   }
+.floater   { background: grey;    }
+.game {
+  position: relative;
+}
