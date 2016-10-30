@@ -1,36 +1,52 @@
+var actorChars ={
+	'@' : Player,
+	'o': Coin,
+	'v' : Enemy
+};
+
 function Level(plan) {
   this.width = plan[0].length;
-
+  
+  
   this.height = plan.length;
 
-  this.grid = [];
-
+	this.grid = [];
+	this.actors = [];
+	
    for (var y = 0; y < this.height; y++) {
     var line = plan[y], gridLine = [];
 
     for (var x = 0; x < this.width; x++) {
 
       var ch = line[x], fieldType = null;
-       if (ch==='@')
-        this.player = new Player(new Vector(x, y));
-      else if (ch == "x")
+	  
+       var Actor = actorChars[ch];
+	   if (Actor)
+		this.actors.push(new Actor(new Vector(x,y), ch));
+	   else if (ch == "x")
         fieldType = "wall";
        else if (ch == "!")
         fieldType = "lava";
-	  else if (ch == "y")
+	   else if (ch == "y")
 		fieldType = "floater";
+		else if (ch == "v")
+		fieldType = "enemy";
+		else if (ch == "o")
+		fieldType = "coin";
 			
       gridLine.push(fieldType);
     }
 
     this.grid.push(gridLine);
-  }
+    }
+  this.player = this.actors.filter(function(actor) {
+	return actor.type == "player";
+	})[0];
 }
 
 Level.prototype.isFinished = function() {
   return this.status != null && this.finishDelay < 0;
 };
-
 
 function Vector(x, y) {
   this.x = x; this.y = y;
@@ -58,6 +74,20 @@ function Lava(pos, ch) {
   }
 }
 Lava.prototype.type = "lava";
+
+function Coin(pos) {
+	this.basePos = this.pos = pos.plus(new Vector(0.2,0.1));
+	this.size = new Vector(0.6,0.6);
+	this.wobble = Math.random() * Math.PI * 2;
+}
+Coin.prototype.type = 'coin';
+
+function Enemy(pos) {
+   this.basePos = this.pos = pos.plus(new Vector(0, 0));
+   this.size = new Vector(1, 1);
+   this.wobble = Math.random() * Math.PI * 2;
+ }
+ Enemy.prototype.type = "enemy";
 
 function elt(name, className) {
   var elt = document.createElement(name);
@@ -93,24 +123,25 @@ DOMDisplay.prototype.drawBackground = function() {
   return table;
 };
 
-DOMDisplay.prototype.drawPlayer = function() {
+DOMDisplay.prototype.drawActors = function() {
 
   var wrap = elt("div");
 
-  var actor = this.level.player;
+  this.level.actors.forEach(function(actor) {
   var rect = wrap.appendChild(elt("div",
                                     "actor " + actor.type));
   rect.style.width = actor.size.x * scale + "px";
   rect.style.height = actor.size.y * scale + "px";
   rect.style.left = actor.pos.x * scale + "px";
   rect.style.top = actor.pos.y * scale + "px";
-  return wrap;
+	});
+	return wrap;
 };
 
 DOMDisplay.prototype.drawFrame = function() {
   if (this.actorLayer)
     this.wrap.removeChild(this.actorLayer);
-  this.actorLayer = this.wrap.appendChild(this.drawPlayer());
+  this.actorLayer = this.wrap.appendChild(this.drawActors());
   this.wrap.className = "game " + (this.level.status || "");
   this.scrollPlayerIntoView();
 };
@@ -165,29 +196,38 @@ Level.prototype.obstacleAt = function(pos, size) {
 };
 
 Level.prototype.actorAt = function(actor) {
-
   for (var i = 0; i < this.player.length; i++) {
     var other = this.player[i];
-
     if (other != actor &&
         actor.pos.x + actor.size.x > other.pos.x &&
         actor.pos.x < other.pos.x + other.size.x &&
         actor.pos.y + actor.size.y > other.pos.y &&
         actor.pos.y < other.pos.y + other.size.y)
       return other;
-  }
-};
+		}
+	};
 
 Level.prototype.animate = function(step, keys) {
-	
-	if (this.status != null)
-		this.finishDelay -= step;
+
+  if (this.status != null)
+    this.finishDelay -= step;
 
   while (step > 0) {
     var thisStep = Math.min(step, maxStep);
-      this.player.act(thisStep, this, keys);
-    step -= thisStep;
+		this.actors.forEach(function(actor) { 
+	  actor.act(thisStep, this, keys);
+    }, this);
+	step -= thisStep;
   }
+};
+
+var wobbleSpeed = 5;
+var wobbleDist = 0.05;
+
+Coin.prototype.act = function(step) {
+	this.wobble += step * wobbleSpeed;
+	var wobblePos = Math.sin(this.wobble) * wobbleDist;
+	this.pos = this.basePos.plus(new Vector(0, wobblePos));
 };
 
 Lava.prototype.act = function(step, level) {
@@ -198,6 +238,14 @@ Lava.prototype.act = function(step, level) {
     this.pos = this.repeatPos;
   else
     this.speed = this.speed.times(-1);
+};
+
+var wobbleXSpeed = 1, wobbleXDist = 2;
+
+Enemy.prototype.act = function(step) {
+  this.wobble += step * wobbleXSpeed;
+  var wobblePos = Math.sin(this.wobble) * wobbleXDist;
+  this.pos = this.basePos.plus(new Vector(wobblePos, 0));
 };
 
 
@@ -246,10 +294,16 @@ Player.prototype.moveY = function(step, level, keys) {
 Player.prototype.act = function(step, level, keys) {
   this.moveX(step, level, keys);
   this.moveY(step, level, keys);
+
   
   var otherActor = level.actorAt(this);
   if (otherActor)
 	  level.playerTouched(otherActor.type, otherActor);
+	  
+	    if (level.status == "lost") {
+    this.pos.y += step;
+    this.size.y -= step;
+  }
 };
 
 
@@ -258,14 +312,31 @@ Level.prototype.playerTouched = function(type, actor) {
   if (type == "lava"  && this.status == null) {
     this.status = "lost";
 	console.log("You have Died.");
+	this.finishDelay = .35;
+	
+		jumpSpeed = 0;
+	playerXSpeed = 0;
+	
+  if (type == "coin") {
+    this.actors = this.actors.filter(function(other) {
+      return other != actor;
+			})
+		}
+	}
+};
+
+Level.prototype.playerTouched = function(type, actor) {
+
+  if (type == "Enemy"  && this.status == null) {
+    this.status = "lost";
+	console.log("You have Died.");
 
     this.finishDelay = .35;
 
 	jumpSpeed = 0;
 	playerXSpeed = 0;
-  }
+		}
 };
-
 
 var arrowCodes = {37: "left", 38: "up", 39: "right", 40: "down"};
 

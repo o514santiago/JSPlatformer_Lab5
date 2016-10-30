@@ -4,9 +4,12 @@
 .background td { padding: 0;          }
 .lava          { background: rgb(255, 0, 0); }
 .wall          { background: green;   }
+
 .floater   { background: grey;    }
 .actor  { position: absolute;  }
 .player { background: rgb(20, 200, 164); }
+.coin {background: rgb(241, 229, 89); }
+.enemy  {background: rgb(0, 0, 0); }
 
 .game {
   overflow: hidden;
