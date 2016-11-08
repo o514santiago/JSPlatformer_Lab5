@@ -1,8 +1,15 @@
-var actorChars ={
-	'@' : Player,
-	'o': Coin,
-	'v' : Enemy
+var actorChars = {
+  "@": Player,
+  "o": Coin,
+  "=": Lava, "|": Lava, "l": Lava, 
+  "p": Powerup,
+  "v": Enemy,
 };
+
+this.status = "level_two";
+var l = 0;
+
+var player_immune = 0;
 
 function Level(plan) {
   this.width = plan[0].length;
@@ -27,18 +34,15 @@ function Level(plan) {
         fieldType = "wall";
        else if (ch == "!")
         fieldType = "lava";
-	   else if (ch == "y")
-		fieldType = "floater";
-		else if (ch == "v")
-		fieldType = "enemy";
-		else if (ch == "o")
-		fieldType = "coin";
+	
+
 			
       gridLine.push(fieldType);
     }
 
     this.grid.push(gridLine);
     }
+	
   this.player = this.actors.filter(function(actor) {
 	return actor.type == "player";
 	})[0];
@@ -67,20 +71,20 @@ function Player(pos) {
 }
 Player.prototype.type = "player";
 
-function Lava(pos, ch) {
-  this.pos = pos;
-  if (ch == "!") {
-     this.size = new Vector(10, 10)
-  }
-}
-Lava.prototype.type = "lava";
-
 function Coin(pos) {
 	this.basePos = this.pos = pos.plus(new Vector(0.2,0.1));
 	this.size = new Vector(0.6,0.6);
 	this.wobble = Math.random() * Math.PI * 2;
+	console.log("make coin");
 }
-Coin.prototype.type = 'coin';
+Coin.prototype.type = "coin";
+
+function Powerup(pos) {
+  this.basePos = this.pos = pos.plus(new Vector(0.4, 0.2));
+  this.size = new Vector(0.6, 0.8);
+  this.wobble = Math.random() * Math.PI * 2;
+}
+Powerup.prototype.type = "powerup";
 
 function Enemy(pos) {
    this.basePos = this.pos = pos.plus(new Vector(0, 0));
@@ -88,6 +92,30 @@ function Enemy(pos) {
    this.wobble = Math.random() * Math.PI * 2;
  }
  Enemy.prototype.type = "enemy";
+
+
+function Lava(pos, ch) {
+  this.pos = pos;
+  if (ch == "=") {
+//horizontal
+	this.size = new Vector(1, 1);
+    this.speed = new Vector(2, 0);
+  } else if (ch == "|") {
+//vertical
+	this.size = new Vector(1, 1);
+    this.speed = new Vector(2, 0);
+  } else if (ch == "l") {
+//dripping
+	this.size = new Vector(1, 1);
+    this.speed = new Vector(0, 3);
+    this.repeatPos = pos;
+  }
+    else if (ch == "!") {
+		this.size = new Vector(1, 0.8)
+	}
+}
+Lava.prototype.type = "lava";
+
 
 function elt(name, className) {
   var elt = document.createElement(name);
@@ -178,26 +206,24 @@ Level.prototype.obstacleAt = function(pos, size) {
 	var xStart = Math.floor(pos.x);
 	var xEnd = Math.ceil(pos.x + size.x);
 	var yStart = Math.floor(pos.y);
-	var yEnd = (Math.ceil(pos.y + size.y));
+	var yEnd = Math.ceil(pos.y + size.y);
 	
-	if (xStart <0 || xEnd > this.width || yStart < 0 || yEnd >this.height)
-			return 'wall';
+	if (xStart <0 || xEnd > this.width || yStart < 0)
+		return 'wall';
 	if (yEnd > this.height)
-    return "lava";
+		return "lava";
 			
 	for (var y = yStart; y < yEnd; y++) {
 		for (var x = xStart; x < xEnd; x++) {
 			var fieldType = this.grid[y][x];
-			if (fieldType) {
-				return fieldType;
-			}
+			if (fieldType) return fieldType;
 		}
 	}
 };
 
 Level.prototype.actorAt = function(actor) {
-  for (var i = 0; i < this.player.length; i++) {
-    var other = this.player[i];
+  for (var i = 0; i < this.actors.length; i++) {
+    var other = this.actors[i];
     if (other != actor &&
         actor.pos.x + actor.size.x > other.pos.x &&
         actor.pos.x < other.pos.x + other.size.x &&
@@ -220,15 +246,9 @@ Level.prototype.animate = function(step, keys) {
 	step -= thisStep;
   }
 };
-
+/*var maxStep = 0.05;
 var wobbleSpeed = 5;
-var wobbleDist = 0.05;
-
-Coin.prototype.act = function(step) {
-	this.wobble += step * wobbleSpeed;
-	var wobblePos = Math.sin(this.wobble) * wobbleDist;
-	this.pos = this.basePos.plus(new Vector(0, wobblePos));
-};
+var wobbleDist = 0.05;*/
 
 Lava.prototype.act = function(step, level) {
   var newPos = this.pos.plus(this.speed.times(step));
@@ -243,15 +263,45 @@ Lava.prototype.act = function(step, level) {
 var wobbleXSpeed = 1, wobbleXDist = 2;
 
 Enemy.prototype.act = function(step) {
+	//var newPos = this.pos.plus(this.speed.times(step));
+	//if (!level.obstacleAt(newPos, this.size))
+		//this.pos = newPos;
   this.wobble += step * wobbleXSpeed;
   var wobblePos = Math.sin(this.wobble) * wobbleXDist;
   this.pos = this.basePos.plus(new Vector(wobblePos, 0));
 };
 
-
 var maxStep = 0.05;
 
 var playerXSpeed = 10;
+
+Coin.prototype.act = function(step) {
+  this.wobble += step * wobbleSpeed;
+  var wobblePos = Math.sin(this.wobble) * wobbleDist;
+  this.pos = this.basePos.plus(new Vector(0, wobblePos));
+};
+
+var maxStep = 0.05;
+
+var wobbleSpeed = 8, wobbleDist = 0.07;
+
+Coin.prototype.act = function(step) {
+  this.wobble += step * wobbleSpeed;
+  var wobblePos = Math.sin(this.wobble) * wobbleDist;
+  this.pos = this.basePos.plus(new Vector(0, wobblePos));
+};
+
+
+var maxStep = 0.05;
+
+var playerXSpeed = 15;
+
+Powerup.prototype.act = function(step, level){
+	this.wobble += step * wobbleSpeed;
+	var wobblePos = Math.sin(this.wobble) * wobbleDist;
+	this.pos = this.pos.plus(new Vector(0, wobblePos));
+
+};
 
 Player.prototype.moveX = function(step, level, keys) {
   this.speed.x = 0;
@@ -265,13 +315,11 @@ Player.prototype.moveX = function(step, level, keys) {
     level.playerTouched(obstacle);
   else 
     this.pos = newPos;
-	if (level.status == "lost"){
-	}
 };
 
 var gravity = 45;
 var jumpSpeed = 17;
-var playerYSpeed = 35;
+//var playerYSpeed = 35;
 
 Player.prototype.moveY = function(step, level, keys) {
   this.speed.y += step * gravity;
@@ -287,8 +335,6 @@ Player.prototype.moveY = function(step, level, keys) {
 	} else {
 		this.pos = newPos;
 	}
-	if (level.status == "lost"){
-	}
 };
 
 Player.prototype.act = function(step, level, keys) {
@@ -297,48 +343,71 @@ Player.prototype.act = function(step, level, keys) {
 
   
   var otherActor = level.actorAt(this);
-  if (otherActor)
+  if (otherActor) {
 	  level.playerTouched(otherActor.type, otherActor);
-	  
-	    if (level.status == "lost") {
-    this.pos.y += step;
-    this.size.y -= step;
+	  console.log(otherActor.type);
+	}  
+	if (level.status == "lost") {
+		this.pos.y += step;
+		this.size.y -= step;
   }
 };
 
 
 Level.prototype.playerTouched = function(type, actor) {
-
+	
   if (type == "lava"  && this.status == null) {
+	if(player_immune == 0){
     this.status = "lost";
-	console.log("You have Died.");
-	this.finishDelay = .35;
-	
-		jumpSpeed = 0;
+	console.log("You lose!");
+    this.finishDelay = .35;
+	jumpSpeed = 0;
 	playerXSpeed = 0;
-	
-  if (type == "coin") {
+	}
+	else{
+		
+	}
+
+  }else if (type == "enemy"  && this.status == null) {	
+	if(player_immune == 0){
+		this.status = "lost";
+		this.finishDelay = .35;		
+		jumpSpeed = 0;
+		console.log("enemy touch!");
+		playerXSpeed = 0;
+		}
+		else{
+		
+		}
+  } else if (type == "coin") {
     this.actors = this.actors.filter(function(other) {
       return other != actor;
-			})
-		}
+	  console.log("coin touch!");
+    });
+		
+    if (!this.actors.some(function(actor) {
+           return actor.type == "coin";
+         })) {
+      this.status = "won";
+      this.finishDelay = 2;
+    }
+  }
+  	else if (type == "powerup"){
+		var start = new Date;
+			
+	  player_immune = 1;
+	  setTimeout(reset_power_up, 7500);
+	  this.actors = this.actors.filter(function(other) {
+      return other != actor;
+    });
 	}
 };
 
-Level.prototype.playerTouched = function(type, actor) {
+	function reset_power_up(){
+		player_immune = 0;
+	}
 
-  if (type == "Enemy"  && this.status == null) {
-    this.status = "lost";
-	console.log("You have Died.");
-
-    this.finishDelay = .35;
-
-	jumpSpeed = 0;
-	playerXSpeed = 0;
-		}
-};
-
-var arrowCodes = {37: "left", 38: "up", 39: "right", 40: "down"};
+var arrowCodes = {37: "left", 38: "up", 39: "right",};
 
 
 function trackKeys(codes) {
@@ -393,15 +462,25 @@ function runLevel(level, Display, andThen) {
 
 function runGame(plans, Display) {
   function startLevel(n) {
-	  	  jumpSpeed = 17;
-		  playerXSpeed = 7;
-   
-    runLevel(new Level(plans[n]), Display, function(status) {
-		if (status == "lost"){
-			console.log("Restarting");
-			}
-			startLevel(n);
-		});
+	  jumpSpeed = 17;
+	  playerXSpeed = 7;
+	    if (l==0){
+		this.status = "level_one";
 	}
+	else if (l==1){
+		this.status = "level_two";
+}
+
+	runLevel(new Level(plans[n]), Display, function(status) {
+      if (status == "lost")
+        startLevel(n);
+      else if (n < plans.length - 1){
+        startLevel(n + 1);
+		l = l+1;
+	  }
+      else
+        console.log("You win!");
+    });
+  }
   startLevel(0);
 }

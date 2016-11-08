@@ -9,7 +9,9 @@
 .actor  { position: absolute;  }
 .player { background: rgb(20, 200, 164); }
 .coin {background: rgb(241, 229, 89); }
-.enemy  {background: rgb(0, 0, 0); }
+.enemy  {background: rgb(255, 200, 200); }
+.powerup{ background: purple;     }
+
 
 .game {
   overflow: hidden;
@@ -17,4 +19,29 @@
    max-height: 450px;
    position: relative;
  }
+.null .background {
+	background: red;
+}
 
+.level_two .background {
+	background: grey;
+}
+
+.lost .player {
+  background: rgb(150, 64, 64);
+}
+.lost .background {
+	background: rgb(40, 0, 0);
+}
+.immune .player {
+	background: blue;
+}
+.normal .player {
+	background: rgb(255, 126, 0);
+}
+.won .player {
+  box-shadow: -4px -7px 8px white, 4px -7px 8px white;
+}
+.won .background {
+	background: rgb(175, 175, 175);
+}
